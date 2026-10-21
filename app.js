@@ -1068,6 +1068,14 @@ Mes notes pour l'appréciation générale :
 ${r.synthese || "—"}`;
   return masquer(brut, crMasques(r));
 }
+// Ouvre ChatGPT dans une fenêtre séparée sur la moitié droite de l'écran
+// (ChatGPT interdit d'être affiché à l'intérieur d'un autre site). Sur mobile, un onglet s'ouvre.
+function ouvrirChatGPT() {
+  const largeur = Math.round(screen.availWidth / 2);
+  const gauche = (screen.availLeft || 0) + screen.availWidth - largeur;
+  const options = `popup=yes,noopener,width=${largeur},height=${screen.availHeight},left=${gauche},top=${screen.availTop || 0}`;
+  window.open("https://chatgpt.com/", "chatgpt-cote-a-cote", options);
+}
 function printText(title, text) {
   const w = window.open("", "_blank");
   if (!w) return toast("Autorisez les fenêtres pop-up pour imprimer");
@@ -1179,13 +1187,18 @@ function renderCREditeur(el, id) {
           <div class="output prompt-preview" id="pv"></div>
           ${champMasques}
         </li>
-        <li><h3>Copiez, puis collez dans ChatGPT</h3>
+        <li><h3>Ouvrez ChatGPT à côté du site</h3>
           <div class="row"><button class="btn primary" id="go">${icon("copy")}Copier et ouvrir ChatGPT</button>
-          <span class="small muted">Dans ChatGPT : Ctrl+V, puis Entrée.</span></div>
+          <span class="small muted">ChatGPT s'ouvre sur la moitié droite de l'écran. Collez-y la demande (Ctrl+V), puis appuyez sur Entrée.</span></div>
+          <p class="small muted" style="margin:6px 0 0">Astuce : pour placer ce site sur la moitié gauche, cliquez dans sa fenêtre puis appuyez sur ⊞ Windows + ←.</p>
         </li>
-        <li><h3>Collez ici la réponse de ChatGPT</h3>
-          <textarea id="rep" rows="8" placeholder="Copiez la réponse de ChatGPT (bouton « Copier » sous sa réponse), puis collez-la ici."></textarea>
-          <div class="row" style="margin-top:8px"><span class="small muted">Les vrais noms seront rétablis automatiquement.</span><span class="spacer"></span><button class="btn primary" id="use">Utiliser ce texte</button></div>
+        <li><h3>Récupérez la réponse</h3>
+          <p class="small muted" style="margin:0 0 8px">Dans ChatGPT, cliquez sur l'icône « Copier » sous la réponse, puis sur le bouton ci-dessous.</p>
+          <div class="row"><button class="btn primary" id="paste">${icon("down")}Coller la réponse</button><span class="small muted">Les vrais noms sont rétablis automatiquement.</span></div>
+          <details style="margin-top:10px"><summary class="small muted" style="cursor:pointer">Ou coller à la main</summary>
+            <textarea id="rep" rows="6" style="margin-top:8px" placeholder="Collez ici la réponse de ChatGPT (Ctrl+V)"></textarea>
+            <div class="row" style="margin-top:8px"><span class="spacer"></span><button class="btn" id="use">Utiliser ce texte</button></div>
+          </details>
         </li>
       </ol>
       <div class="notice small">Conseil : dans ChatGPT, ouvrez Paramètres → Gestion des données, et désactivez « Améliorer le modèle pour tous » pour que vos textes ne servent pas à l'entraînement.</div>`;
@@ -1193,11 +1206,24 @@ function renderCREditeur(el, id) {
       draw(); bindMasques(draw);
       $("#go").onclick = () => {
         navigator.clipboard.writeText(crPrompt(r)).then(() => {
-          toast("Copié : collez-le dans ChatGPT");
-          window.open("https://chatgpt.com/", "_blank", "noopener");
+          toast("Copié : collez-le dans ChatGPT (Ctrl+V)");
+          ouvrirChatGPT();
         }, () => toast("Copie impossible : sélectionnez le texte à la main"));
       };
-      $("#use").onclick = () => { const t = $("#rep").value.trim(); if (!t) return toast("Collez d'abord la réponse"); useText(t); };
+      const accepter = (t) => {
+        t = (t || "").trim();
+        if (!t) return toast("Rien à coller : copiez d'abord la réponse de ChatGPT");
+        if (t.startsWith("Tu es inspectrice")) return toast("C'est encore la demande : copiez la réponse de ChatGPT");
+        useText(t);
+      };
+      $("#paste").onclick = async () => {
+        try { accepter(await navigator.clipboard.readText()); }
+        catch (err) {
+          toast("Accès au presse-papiers refusé : collez à la main");
+          $("details", box).open = true; $("#rep").focus();
+        }
+      };
+      $("#use").onclick = () => accepter($("#rep").value);
     } else if (methode === "claude") {
       mBox.innerHTML = hasKey ? `
         <p class="small muted" style="margin-top:0">Le texte anonymisé ci-dessous est envoyé à Claude, puis le compte rendu revient directement ici, avec les vrais noms rétablis.</p>
