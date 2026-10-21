@@ -5,7 +5,8 @@ Site statique, sans serveur, pour l'IEN de la circonscription de Grasse (1er deg
 ## Modules
 - **Accueil** : prochains rendez-vous, courriers en attente, animations, accès rapides.
 - **Messagerie et courrier** : lien vers le webmail académique et suivi des demandes à traiter, avec leurs échéances.
-- **Rendez-vous de carrière** : planification, grille des 11 compétences (PPCR), compte rendu généré automatiquement (copie, Word, impression).
+- **Rendez-vous de carrière** : planification des visites.
+- **Comptes rendus** : grille des 11 compétences (PPCR), rédaction assistée par ChatGPT (gratuit, par copier-coller, avec anonymisation automatique), par Claude ou sans IA, puis export Word et impression.
 - **Écoles** : annuaire chargé en direct depuis l'annuaire public de l'Éducation nationale, avec des notes personnelles (direction, effectifs, conseils d'école).
 - **Trajets** : ordre de visite optimisé (OSRM), kilomètres, temps de route et frais estimés.
 - **Animations pédagogiques** : sessions, volume horaire, feuilles d'émargement.

@@ -176,13 +176,14 @@ function formData(form) {
 /* ---------- Routeur ---------- */
 const VIEWS = {
   accueil: { title: "Accueil", render: renderAccueil },
-  courrier: { title: "Messagerie & courrier", render: renderCourrier },
+  courrier: { title: "Courrier", render: renderCourrier },
   rdv: { title: "Rendez-vous de carrière", render: renderRdv },
+  cr: { title: "Comptes rendus", render: renderCR },
   ecoles: { title: "Écoles de la circonscription", render: renderEcoles },
   trajets: { title: "Optimisation des trajets", render: renderTrajets },
   animations: { title: "Animations pédagogiques", render: renderAnimations },
-  redaction: { title: "Aide à la rédaction", render: renderRedaction },
-  parametres: { title: "Paramètres", render: renderParametres },
+  redaction: { title: "Courriers types", render: renderRedaction },
+  parametres: { title: "Réglages", render: renderParametres },
 };
 function route() {
   const name = (location.hash.slice(1) || "accueil").split("/")[0];
@@ -192,7 +193,8 @@ function route() {
   $("#sidebar").classList.remove("open");
   if (map) { map.remove(); map = null; }
   $("#view").innerHTML = "";
-  v.render($("#view"));
+  v.render($("#view"), location.hash.slice(1).split("/")[1]);
+  updateCounts();
   window.scrollTo(0, 0);
 }
 window.addEventListener("hashchange", route);
@@ -204,7 +206,7 @@ function renderAccueil(el) {
   const today = todayISO();
   const rdvAVenir = state.rdv.filter((r) => r.date && r.date >= today && r.statut !== "Réalisé" && r.statut !== "Compte rendu envoyé")
     .sort((a, b) => (a.date + (a.heure || "")).localeCompare(b.date + (b.heure || "")));
-  const crAFaire = state.rdv.filter((r) => r.statut === "Réalisé");
+  const crAFaire = crListe().filter((r) => crEtat(r) === "arediger");
   const animAVenir = state.animations.filter((a) => a.date >= today).sort((a, b) => a.date.localeCompare(b.date));
   const courrierOuvert = state.courrier.filter((c) => c.statut !== "Traité");
   const enRetard = courrierOuvert.filter((c) => c.echeance && c.echeance < today);
@@ -214,17 +216,17 @@ function renderAccueil(el) {
 
   el.innerHTML = `
   <div class="stack">
-    <div class="row"><h2>${h < 18 ? "Bonjour" : "Bonsoir"}${prenom} 👋</h2></div>
+    <div class="page-head"><div><h2>${h < 18 ? "Bonjour" : "Bonsoir"}${prenom}</h2><p>Voici votre journée.</p></div></div>
     <div class="grid grid-4">
-      <a class="card stat" href="#rdv" style="text-decoration:none;color:inherit"><div class="num">${rdvAVenir.length}</div><div class="lbl">Rendez-vous à venir</div></a>
-      <a class="card stat ${crAFaire.length ? "alert" : ""}" href="#rdv" style="text-decoration:none;color:inherit"><div class="num">${crAFaire.length}</div><div class="lbl">Comptes rendus à rédiger</div></a>
-      <a class="card stat ${enRetard.length ? "alert" : ""}" href="#courrier" style="text-decoration:none;color:inherit"><div class="num">${courrierOuvert.length}</div><div class="lbl">Courriers à traiter${enRetard.length ? ` · <b>${enRetard.length} en retard</b>` : ""}</div></a>
-      <a class="card stat" href="#animations" style="text-decoration:none;color:inherit"><div class="num">${heures}<span class="small muted"> h</span></div><div class="lbl">Animations planifiées</div></a>
+      <a class="card stat" href="#rdv"><div class="num">${rdvAVenir.length}</div><div class="lbl">Rendez-vous à venir</div></a>
+      <a class="card stat ${crAFaire.length ? "alert" : ""}" href="#cr"><div class="num">${crAFaire.length}</div><div class="lbl">Comptes rendus à rédiger</div></a>
+      <a class="card stat ${enRetard.length ? "alert" : ""}" href="#courrier"><div class="num">${courrierOuvert.length}</div><div class="lbl">Courriers à traiter${enRetard.length ? ` · <b>${enRetard.length} en retard</b>` : ""}</div></a>
+      <a class="card stat" href="#animations"><div class="num">${heures}<span class="small muted"> h</span></div><div class="lbl">Animations planifiées</div></a>
     </div>
 
     <div class="card">
       <div class="card-head"><h2>Accès rapides</h2><a class="small" href="#parametres">Modifier</a></div>
-      <div class="links">${state.settings.liens.map((l) => `<a class="link-tile" href="${esc(l.url)}" target="_blank" rel="noopener"><span>${esc(l.icon || "🔗")}</span>${esc(l.label)}</a>`).join("")}</div>
+      <div class="links">${state.settings.liens.map((l) => `<a class="link-tile" href="${esc(l.url)}" target="_blank" rel="noopener"><span class="ico">${esc(l.icon || "🔗")}</span>${esc(l.label)}</a>`).join("")}</div>
     </div>
 
     <div class="grid grid-3">
@@ -266,7 +268,7 @@ function renderCourrier(el) {
           <p class="muted small" style="margin:6px 0 0">Pour des raisons de sécurité, la boîte mail académique ne peut pas être lue depuis ce site.
           Ouvrez-la avec le bouton ci-contre, et notez ici les mails qui demandent une action, avec leur échéance : ils remontent sur l'accueil.</p>
         </div>
-        <a class="btn primary big" href="${esc(webmail.url)}" target="_blank" rel="noopener">✉️ Ouvrir la messagerie</a>
+        <a class="btn primary big" href="${esc(webmail.url)}" target="_blank" rel="noopener">${icon("mail")}Ouvrir la messagerie</a>
       </div>
     </div>
 
@@ -279,7 +281,7 @@ function renderCourrier(el) {
             <option value="traite" ${filtre === "traite" ? "selected" : ""}>Traités</option>
             <option value="tous" ${filtre === "tous" ? "selected" : ""}>Tous</option>
           </select>
-          <button class="btn primary" id="cAdd">＋ Ajouter</button>
+          <button class="btn primary" id="cAdd">${icon("plus")}Ajouter</button>
         </div>
       </div>
       <div class="table-wrap"><table>
@@ -356,7 +358,7 @@ function renderRdv(el) {
             <option value="clos" ${filtre === "clos" ? "selected" : ""}>Clos</option>
             <option value="tous" ${filtre === "tous" ? "selected" : ""}>Tous</option>
           </select>
-          <button class="btn primary" id="rAdd">＋ Nouveau rendez-vous</button>
+          <button class="btn primary" id="rAdd">${icon("plus")}Nouveau rendez-vous</button>
         </div>
       </div>
       <div class="table-wrap"><table>
@@ -368,7 +370,7 @@ function renderRdv(el) {
             <td class="small">${esc(ecoleLabel(r.uai) || r.ecoleLibre || "")}</td>
             <td class="small">${esc(r.type)}</td>
             <td><span class="badge ${r.statut === "Réalisé" ? "warn" : r.statut === "Compte rendu envoyé" ? "ok" : r.statut === "Planifié" ? "info" : ""}">${esc(r.statut)}</span></td>
-            <td><button class="btn sm" data-grille="${r.id}">Grille &amp; compte rendu</button></td>
+            <td><button class="btn sm" data-grille="${r.id}">Compte rendu</button></td>
           </tr>`).join("") || `<tr><td colspan="6" class="empty">Aucun rendez-vous. Cliquez sur « Nouveau rendez-vous ».</td></tr>`}</tbody>
       </table></div>
     </div>
@@ -378,13 +380,14 @@ function renderRdv(el) {
   $("#rFiltre").onchange = (e) => { renderRdv.filtre = e.target.value; route(); };
   $("#rAdd").onclick = () => editRdv();
   $$("tr[data-id]", el).forEach((tr) => (tr.onclick = () => editRdv(tr.dataset.id)));
-  $$("[data-grille]", el).forEach((b) => (b.onclick = (e) => { e.stopPropagation(); openGrille(b.dataset.grille); }));
+  $$("[data-grille]", el).forEach((b) => (b.onclick = (e) => { e.stopPropagation(); location.hash = "#cr/" + b.dataset.grille; }));
 }
-function editRdv(id) {
+function editRdv(id, onCreated) {
   const r = id ? state.rdv.find((x) => x.id === id) : { statut: "Planifié", type: TYPES_RDV[0] };
   openModal(id ? "Rendez-vous" : "Nouveau rendez-vous", `
     <form id="f" class="form-grid">
-      <div><label>Enseignant(e) *</label><input name="enseignant" required value="${esc(r.enseignant)}"></div>
+      <div class="row" style="flex-wrap:nowrap;align-items:flex-end"><div style="width:90px"><label>Civilité</label><select name="civilite">${["Mme", "M."].map((c) => `<option ${c === r.civilite ? "selected" : ""}>${c}</option>`).join("")}</select></div>
+        <div style="flex:1"><label>Enseignant(e) *</label><input name="enseignant" required value="${esc(r.enseignant)}"></div></div>
       <div><label>Type</label><select name="type">${TYPES_RDV.map((t) => `<option ${t === r.type ? "selected" : ""}>${t}</option>`).join("")}</select></div>
       <div class="full"><label>École</label><select name="uai">${ecoleOptions(r.uai)}</select></div>
       <div><label>Classe / niveau</label><input name="niveauClasse" value="${esc(r.niveauClasse)}" placeholder="CE1, MS-GS…"></div>
@@ -400,64 +403,17 @@ function editRdv(id) {
     $("#ok").onclick = () => {
       const f = $("#f"); if (!f.reportValidity()) return;
       const d = formData(f);
-      if (id) Object.assign(r, d); else state.rdv.push({ id: uid(), observations: {}, ...d });
-      save(); closeModal(); route();
+      const ec = ecoleByUai(d.uai);
+      if (ec) { d.ecoleNom = ec.nom; d.ecoleCommune = ec.commune; }
+      let created = null;
+      if (id) Object.assign(r, d); else state.rdv.push((created = { id: uid(), observations: {}, ...d }));
+      save(); closeModal();
+      if (created && onCreated) onCreated(created); else route();
     };
     if (id) {
       $("#del").onclick = () => { if (confirm("Supprimer ce rendez-vous ?")) { state.rdv = state.rdv.filter((x) => x.id !== id); save(); closeModal(); route(); } };
       $("#conv").onclick = () => { closeModal(); location.hash = "#redaction"; setTimeout(() => prefillModele("convocation", r), 50); };
     }
-  });
-}
-function openGrille(id) {
-  const r = state.rdv.find((x) => x.id === id);
-  r.observations = r.observations || {};
-  openModal(`Grille — ${r.enseignant}`, `
-    <p class="small muted" style="margin-top:0">${esc(r.type)} · ${esc(ecoleLabel(r.uai))} · ${fmtDate(r.date, { day: "numeric", month: "long", year: "numeric" })}</p>
-    <div class="tabs no-print"><button class="active" data-tab="obs">Observation</button><button data-tab="cr">Compte rendu</button></div>
-    <div id="tab-obs">
-      ${COMPETENCES.map((c, i) => {
-        const o = r.observations[i] || {};
-        return `<div class="competence">
-          <div class="c-title">${i + 1}. ${esc(c)}</div>
-          <div class="levels">${NIVEAUX.map((n) => `<label><input type="radio" name="n${i}" value="${n}" ${o.niveau === n ? "checked" : ""}>${n}</label>`).join("")}</div>
-          <textarea data-obs="${i}" rows="2" placeholder="Observations, points d'appui, pistes…">${esc(o.texte)}</textarea>
-        </div>`;
-      }).join("")}
-      <div class="competence"><div class="c-title">Appréciation générale</div><textarea id="synthese" rows="4">${esc(r.synthese)}</textarea></div>
-    </div>
-    <div id="tab-cr" hidden>
-      <div class="output" id="crText"></div>
-    </div>
-    <div class="modal-foot no-print">
-      <span class="small muted" id="saved"></span><span class="spacer"></span>
-      <button class="btn" id="copyCr">Copier</button>
-      <button class="btn" id="wordCr">Télécharger (Word)</button>
-      <button class="btn" onclick="window.print()">Imprimer</button>
-      <button class="btn primary" id="okG">Enregistrer</button>
-    </div>`, (root) => {
-    const persist = () => {
-      COMPETENCES.forEach((_, i) => {
-        const niv = $(`input[name="n${i}"]:checked`, root);
-        const txt = $(`[data-obs="${i}"]`, root).value.trim();
-        r.observations[i] = { niveau: niv ? niv.value : "", texte: txt };
-      });
-      r.synthese = $("#synthese", root).value.trim();
-      save();
-      $("#saved").textContent = "Enregistré automatiquement à " + new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-    };
-    root.addEventListener("change", persist);
-    root.addEventListener("input", () => { clearTimeout(openGrille._t); openGrille._t = setTimeout(persist, 800); });
-    $$(".tabs button", root).forEach((b) => (b.onclick = () => {
-      persist();
-      $$(".tabs button", root).forEach((x) => x.classList.toggle("active", x === b));
-      $("#tab-obs").hidden = b.dataset.tab !== "obs";
-      $("#tab-cr").hidden = b.dataset.tab !== "cr";
-      $("#crText").textContent = compteRendu(r);
-    }));
-    $("#copyCr").onclick = () => { persist(); copy(compteRendu(r)); };
-    $("#wordCr").onclick = () => { persist(); downloadWord(`compte-rendu-${r.enseignant.replace(/\W+/g, "-")}.doc`, "Compte rendu", compteRendu(r)); };
-    $("#okG").onclick = () => { persist(); if (r.statut === "Planifié" || r.statut === "À planifier") r.statut = "Réalisé"; save(); closeModal(); route(); };
   });
 }
 function compteRendu(r) {
@@ -645,7 +601,7 @@ function renderTrajets(el) {
         </ol>
         <div class="row" style="margin-top:12px">
           <a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/${[dep, ...steps, dep].map((p) => `${p.lat},${p.lon}`).join("/")}">Ouvrir dans Google Maps</a>
-          <span class="small muted">Frais estimés avec un barème de ${state.settings.bareme} €/km (modifiable dans Paramètres).</span>
+          <span class="small muted">Frais estimés avec un barème de ${state.settings.bareme} €/km (modifiable dans Réglages).</span>
         </div>`;
     } catch (err) {
       $("#tResult").innerHTML = `<p class="muted">Le calcul d'itinéraire a échoué (${esc(err.message)}). Réessayez dans un instant.</p>`;
@@ -667,7 +623,7 @@ function renderAnimations(el) {
       <div class="card stat"><div class="num">${list.reduce((s, a) => s + (a.participants || []).length, 0)}</div><div class="lbl">Inscriptions</div></div>
     </div>
     <div class="card">
-      <div class="card-head"><h2>Sessions</h2><button class="btn primary" id="aAdd">＋ Nouvelle animation</button></div>
+      <div class="card-head"><h2>Sessions</h2><button class="btn primary" id="aAdd">${icon("plus")}Nouvelle animation</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>Date</th><th>Intitulé</th><th>Public</th><th>Lieu</th><th>Durée</th><th>Inscrits</th><th></th></tr></thead>
         <tbody>${list.map((a) => `
@@ -827,7 +783,7 @@ function renderRedaction(el) {
     </div>
     <div id="t-ia" hidden class="stack">
       <div class="notice warn"><b>Confidentialité :</b> le texte est envoyé à l'IA Claude (Anthropic). N'y mettez <b>aucune donnée nominative</b> (noms d'enseignants, d'élèves, d'écoles) :
-      utilisez le bouton « Anonymiser » ou des initiales. ${getApiKey() ? "" : `<br>Une clé d'API est nécessaire : <a href="#parametres">la renseigner dans Paramètres</a>.`}</div>
+      utilisez le bouton « Anonymiser » ou des initiales. ${getApiKey() ? "" : `<br>Une clé d'API est nécessaire : <a href="#parametres">la renseigner dans Réglages</a>.`}</div>
       <div class="grid grid-2">
         <div class="card stack">
           <div><label>Que voulez-vous faire ?</label>
@@ -890,7 +846,7 @@ function renderRedaction(el) {
   $("#iaWord").onclick = () => downloadWord("texte.doc", "Texte", $("#iaOut").innerText);
   $("#iaGo").onclick = async () => {
     const key = getApiKey();
-    if (!key) return toast("Renseignez d'abord la clé d'API dans Paramètres");
+    if (!key) return toast("Renseignez d'abord la clé d'API dans Réglages");
     const input = $("#iaIn").value.trim();
     if (!input) return toast("Saisissez un texte");
     const btn = $("#iaGo"); btn.disabled = true; btn.textContent = "Génération…";
@@ -906,7 +862,7 @@ function prefillModele(key, r) {
   if (!renderRedaction.prefill) return;
   renderRedaction.prefill(key, { enseignant: r.enseignant, ecole: ecoleLabel(r.uai), date: r.date, heure: r.heure, type: r.type });
 }
-// Appel direct à l'API Claude depuis le navigateur, avec la clé personnelle saisie dans Paramètres.
+// Appel direct à l'API Claude depuis le navigateur, avec la clé personnelle saisie dans Réglages.
 async function askClaude(key, tache, texte) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -945,7 +901,7 @@ function renderParametres(el) {
       </form>
     </div>
     <div class="card">
-      <div class="card-head"><h2>Accès rapides</h2><button class="btn sm" id="lAdd">＋ Ajouter</button></div>
+      <div class="card-head"><h2>Accès rapides</h2><button class="btn sm" id="lAdd">${icon("plus")}Ajouter</button></div>
       <div id="liens" class="stack"></div>
     </div>
     <div class="card stack">
@@ -992,6 +948,318 @@ function renderParametres(el) {
     if (!confirm("Effacer définitivement toutes les données de ce navigateur ? Téléchargez une sauvegarde avant.")) return;
     state = defaultState(); save(); route();
   };
+}
+
+/* ========== COMPTES RENDUS ========== */
+const initials = (name) => (name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+const icon = (name) => `<svg class="i"><use href="#i-${name}"/></svg>`;
+const nbCompetences = (r) => COMPETENCES.filter((_, i) => { const o = (r.observations || {})[i] || {}; return o.niveau || o.texte; }).length;
+function crEtat(r) {
+  if (r.statut === "Compte rendu envoyé") return "envoye";
+  if (r.crFinal) return "pret";
+  return "arediger";
+}
+function crListe() {
+  const today = todayISO();
+  return state.rdv.filter((r) => r.statut === "Réalisé" || r.statut === "Compte rendu envoyé" || r.crFinal || nbCompetences(r) || (r.date && r.date <= today));
+}
+
+function renderCR(el, id) {
+  if (id) return renderCREditeur(el, id);
+  const filtre = renderCR.filtre || "arediger";
+  const all = crListe();
+  const counts = { arediger: 0, pret: 0, envoye: 0 };
+  all.forEach((r) => counts[crEtat(r)]++);
+  const list = all.filter((r) => crEtat(r) === filtre).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const labels = { arediger: "À rédiger", pret: "Prêts", envoye: "Envoyés" };
+
+  el.innerHTML = `
+  <div class="stack">
+    <div class="page-head">
+      <div><h2>Comptes rendus</h2><p>Grille d'observation, rédaction assistée, puis export Word.</p></div>
+      <span class="spacer"></span>
+      <button class="btn primary" id="crNew">${icon("plus")}Nouvelle visite</button>
+    </div>
+    <div class="seg" id="crSeg">${Object.entries(labels).map(([k, l]) => `<button data-f="${k}" class="${k === filtre ? "active" : ""}">${l} <span class="muted">${counts[k]}</span></button>`).join("")}</div>
+    <div class="card">
+      <ul class="list">${list.map((r) => `
+        <li class="link" data-id="${r.id}">
+          <div class="avatar sm">${esc(initials(r.enseignant))}</div>
+          <div style="flex:1;min-width:0">
+            <div><b>${esc(r.civilite ? r.civilite + " " : "")}${esc(r.enseignant)}</b> <span class="small muted">· ${esc(r.type)}</span></div>
+            <div class="small muted">${esc(ecoleLabel(r.uai) || "École non renseignée")} · ${fmtDate(r.date, { day: "numeric", month: "long" })}</div>
+          </div>
+          <span class="small muted" title="Compétences renseignées">${nbCompetences(r)}/11</span>
+          <button class="btn sm ${filtre === "arediger" ? "primary" : ""}">${filtre === "envoye" ? "Ouvrir" : "Rédiger"}</button>
+        </li>`).join("") || `<li class="empty">${filtre === "arediger" ? "Aucun compte rendu en attente. Les visites réalisées apparaissent ici." : "Aucun compte rendu dans cette catégorie."}</li>`}</ul>
+    </div>
+  </div>`;
+  $$("#crSeg button").forEach((b) => (b.onclick = () => { renderCR.filtre = b.dataset.f; route(); }));
+  $$("li[data-id]", el).forEach((li) => (li.onclick = () => (location.hash = "#cr/" + li.dataset.id)));
+  $("#crNew").onclick = () => editRdv(null, (r) => (location.hash = "#cr/" + r.id));
+}
+
+// Masque les noms propres avant tout envoi vers une IA, et permet de les rétablir ensuite.
+// Fiche école copiée dans le rendez-vous : le masquage ne dépend pas du chargement de l'annuaire.
+const ecoleDuRdv = (r) => ecoleByUai(r.uai) || (r.ecoleNom ? { nom: r.ecoleNom, commune: r.ecoleCommune || "" } : null);
+const ecoleEnTexte = (e) => (e ? "l'" + e.nom.replace(/^[EÉ]cole/, "école") : "l'école");
+function crMasques(r) {
+  const e = ecoleDuRdv(r);
+  const pairs = [];
+  if (r.enseignant) {
+    pairs.push([r.enseignant, "[ENSEIGNANT]"]);
+    r.enseignant.split(/\s+/).filter((w) => w.length > 2).forEach((w) => pairs.push([w, "[ENSEIGNANT]"]));
+  }
+  if (e) {
+    pairs.push([e.nom, "[ÉCOLE]"]);
+    // Nom court de l'école (« Saint-Exupéry », « Gambetta »…), sans les mots génériques.
+    const court = e.nom.replace(/^(é|e)cole\s+(maternelle|élémentaire|elementaire|primaire)?\s*(privée?|publique)?\s*(de\s+|d'|du\s+|des\s+)?/i, "").trim();
+    if (court.length > 2 && court !== e.nom) pairs.push([court, "[ÉCOLE]"]);
+    pairs.push([e.commune, "[COMMUNE]"]);
+  }
+  (r.masques || "").split(",").map((s) => s.trim()).filter(Boolean).forEach((n, i) => pairs.push([n, `[PERSONNE ${String.fromCharCode(65 + i)}]`]));
+  return pairs.sort((a, b) => b[0].length - a[0].length);
+}
+function masquer(text, pairs) {
+  let t = text;
+  pairs.forEach(([n, tag]) => {
+    const motif = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    t = t.replace(new RegExp(`(?<!\\p{L})${motif}(?!\\p{L})`, "giu"), tag);
+  });
+  return t;
+}
+function retablir(text, r) {
+  const e = ecoleDuRdv(r);
+  return text
+    .replace(/\[ENSEIGNANT\]/g, r.enseignant || "")
+    .replace(/l'école \[ÉCOLE\]/gi, ecoleEnTexte(e))
+    .replace(/\b(à|de) \[ÉCOLE\]/g, (m, prep) => `${prep} ${ecoleEnTexte(e)}`)
+    .replace(/\[ÉCOLE\]/g, ecoleEnTexte(e))
+    .replace(/\[COMMUNE\]/g, e ? e.commune : "")
+    .replace(/\[PERSONNE ([A-Z])\]/g, (m, l) => ((r.masques || "").split(",").map((s) => s.trim()).filter(Boolean)[l.charCodeAt(0) - 65]) || m);
+}
+function nettoyerMarkdown(t) {
+  return t.replace(/\*\*(.+?)\*\*/g, "$1").replace(/^#{1,6}\s*/gm, "").replace(/^\s*[-*]\s+/gm, "– ").replace(/\n{3,}/g, "\n\n").trim();
+}
+function crPrompt(r) {
+  const civ = r.civilite || "Madame ou Monsieur";
+  const obs = COMPETENCES.map((c, i) => {
+    const o = (r.observations || {})[i] || {};
+    if (!o.niveau && !o.texte) return "";
+    return `${i + 1}. ${c}\n   Positionnement : ${o.niveau || "non précisé"}\n   Mes notes : ${o.texte || "—"}`;
+  }).filter(Boolean).join("\n");
+  const brut = `Tu es inspectrice de l'Éducation nationale du premier degré. À partir de mes notes d'observation ci-dessous, rédige le compte rendu d'un ${r.type.toLowerCase()} pour ${civ} [ENSEIGNANT], professeur des écoles${r.niveauClasse ? " en " + r.niveauClasse : ""}.
+
+Consignes :
+- Suis la grille du référentiel de compétences (PPCR) : pour chaque compétence ci-dessous, rédige un paragraphe de 2 à 4 phrases fondé sur mes notes, en commençant par les points d'appui, puis les pistes de progrès.
+- Termine par une partie « Appréciation générale » d'environ 10 lignes, synthétique et bienveillante.
+- Style : français administratif soutenu, précis et factuel, à la troisième personne (${civ} [ENSEIGNANT]).
+- N'invente aucun fait absent de mes notes.
+- Conserve tels quels les marqueurs entre crochets, comme [ENSEIGNANT] ou [ÉCOLE].
+- Réponds uniquement avec le compte rendu, en texte brut, sans Markdown ni astérisques.
+
+Séance observée : ${r.seance || "non précisée"}
+
+Mes observations :
+${obs || "(aucune compétence renseignée)"}
+
+Mes notes pour l'appréciation générale :
+${r.synthese || "—"}`;
+  return masquer(brut, crMasques(r));
+}
+function printText(title, text) {
+  const w = window.open("", "_blank");
+  if (!w) return toast("Autorisez les fenêtres pop-up pour imprimer");
+  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${esc(title)}</title>
+    <style>body{font:11.5pt/1.55 -apple-system,"Segoe UI",Calibri,Arial,sans-serif;max-width:720px;margin:40px auto;padding:0 24px;color:#000;white-space:pre-wrap}</style></head>
+    <body>${esc(text)}</body></html>`);
+  w.document.close(); w.focus(); setTimeout(() => w.print(), 200);
+}
+
+function renderCREditeur(el, id) {
+  const r = state.rdv.find((x) => x.id === id);
+  if (!r) { el.innerHTML = `<div class="card empty">Ce rendez-vous n'existe plus. <a href="#cr">Retour</a></div>`; return; }
+  if (r.uai && !ecoleDuRdv(r) && !renderCREditeur.attente) {
+    renderCREditeur.attente = true;
+    el.innerHTML = `<div class="card muted">Chargement…</div>`;
+    loadEcoles().then(() => { renderCREditeur.attente = false; if (location.hash === "#cr/" + id) route(); });
+    return;
+  }
+  r.observations = r.observations || {};
+  const step = renderCREditeur.step?.[id] || (r.crFinal ? 3 : nbCompetences(r) ? 2 : 1);
+  const setStep = (n) => { renderCREditeur.step = { ...(renderCREditeur.step || {}), [id]: n }; route(); };
+  const etat = crEtat(r);
+  $("#viewTitle").textContent = "Compte rendu";
+
+  el.innerHTML = `
+  <div class="stack">
+    <div class="card no-print">
+      <div class="cr-head">
+        <a href="#cr" class="btn sm">${icon("back")}Retour</a>
+        <div class="avatar">${esc(initials(r.enseignant))}</div>
+        <div style="flex:1;min-width:200px">
+          <h2 style="font-size:17px">${esc(r.civilite ? r.civilite + " " : "")}${esc(r.enseignant)}</h2>
+          <div class="small muted">${esc(r.type)} · ${esc(ecoleLabel(r.uai) || "École non renseignée")}${r.niveauClasse ? " · " + esc(r.niveauClasse) : ""} · ${fmtDate(r.date, { day: "numeric", month: "long", year: "numeric" })}</div>
+        </div>
+        <span class="badge ${etat === "envoye" ? "ok" : etat === "pret" ? "info" : "warn"}">${{ envoye: "Envoyé", pret: "Prêt", arediger: "À rédiger" }[etat]}</span>
+        <button class="btn sm" id="crInfos">Modifier la fiche</button>
+      </div>
+      <div class="steps" style="margin-top:14px">
+        ${["Observation", "Rédaction", "Finalisation"].map((s, i) => `<button class="step ${step === i + 1 ? "active" : ""} ${(i === 0 && nbCompetences(r)) || (i === 1 && r.crFinal) || (i === 2 && etat === "envoye") ? "done" : ""}" data-step="${i + 1}"><span class="n">${(i === 0 && nbCompetences(r)) || (i === 1 && r.crFinal) || (i === 2 && etat === "envoye") ? "✓" : i + 1}</span>${s}</button>`).join("")}
+      </div>
+    </div>
+    <div id="crStep"></div>
+  </div>`;
+  $$(".step", el).forEach((b) => (b.onclick = () => setStep(+b.dataset.step)));
+  $("#crInfos").onclick = () => editRdv(id);
+  const box = $("#crStep");
+
+  if (step === 1) {
+    box.innerHTML = `
+    <div class="card">
+      <div class="form-grid" style="margin-bottom:6px">
+        <div class="full"><label>Séance observée</label><input id="crSeance" value="${esc(r.seance)}" placeholder="Domaine, objectif, déroulement…"></div>
+      </div>
+      ${COMPETENCES.map((c, i) => {
+        const o = r.observations[i] || {};
+        return `<div class="competence">
+          <div class="c-title"><span class="c-num">${i + 1}</span>${esc(c)}</div>
+          <div class="levels">${NIVEAUX.map((n) => `<label><input type="radio" name="n${i}" value="${n}" ${o.niveau === n ? "checked" : ""}>${n}</label>`).join("")}</div>
+          <textarea data-obs="${i}" rows="2" placeholder="Notes rapides : ce que vous avez observé, points d'appui, pistes…">${esc(o.texte)}</textarea>
+        </div>`;
+      }).join("")}
+      <div class="competence"><div class="c-title"><span class="c-num">★</span>Notes pour l'appréciation générale</div><textarea id="synthese" rows="4">${esc(r.synthese)}</textarea></div>
+      <div class="row" style="margin-top:12px"><span class="small muted" id="saved">Enregistrement automatique</span><span class="spacer"></span><button class="btn primary" id="next">Continuer vers la rédaction</button></div>
+    </div>`;
+    const persist = () => {
+      COMPETENCES.forEach((_, i) => {
+        const niv = $(`input[name="n${i}"]:checked`, box);
+        r.observations[i] = { niveau: niv ? niv.value : "", texte: $(`[data-obs="${i}"]`, box).value.trim() };
+      });
+      r.synthese = $("#synthese").value.trim();
+      r.seance = $("#crSeance").value.trim();
+      if (r.statut === "Planifié" || r.statut === "À planifier") r.statut = "Réalisé";
+      save(); updateCounts();
+      $("#saved").textContent = "Enregistré à " + new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    };
+    box.addEventListener("change", persist);
+    box.addEventListener("input", () => { clearTimeout(renderCREditeur._t); renderCREditeur._t = setTimeout(persist, 700); });
+    $("#next").onclick = () => { persist(); setStep(2); };
+    return;
+  }
+
+  if (step === 2) {
+    const methode = renderCREditeur.methode || "chatgpt";
+    const hasKey = !!getApiKey();
+    box.innerHTML = `
+    <div class="card">
+      <div class="method">
+        <button data-m="chatgpt" class="${methode === "chatgpt" ? "active" : ""}"><b>ChatGPT</b><span>Gratuit, par copier-coller</span></button>
+        <button data-m="claude" class="${methode === "claude" ? "active" : ""}"><b>Claude</b><span>Automatique, avec une clé d'API</span></button>
+        <button data-m="sans" class="${methode === "sans" ? "active" : ""}"><b>Sans IA</b><span>Mise en forme de la grille</span></button>
+      </div>
+      <div id="mBox"></div>
+    </div>`;
+    $$(".method button", box).forEach((b) => (b.onclick = () => { renderCREditeur.methode = b.dataset.m; route(); }));
+    const mBox = $("#mBox");
+    const useText = (txt) => {
+      r.crFinal = nettoyerMarkdown(retablir(txt, r));
+      if (r.statut === "Planifié" || r.statut === "À planifier") r.statut = "Réalisé";
+      save(); updateCounts(); setStep(3); toast("Compte rendu prêt à relire");
+    };
+    const champMasques = `<div style="margin-top:8px"><label>Autres noms à masquer (élèves, collègues…), séparés par des virgules</label><input id="masques" value="${esc(r.masques)}" placeholder="Lucas, Mme Martin…"></div>`;
+    const bindMasques = (redraw) => { $("#masques").onchange = (e) => { r.masques = e.target.value; save(); redraw(); }; };
+
+    if (methode === "chatgpt") {
+      mBox.innerHTML = `
+      <ol class="flow">
+        <li><h3>Vérifiez le texte qui sera envoyé</h3>
+          <p class="small muted" style="margin:0 0 8px">Le nom de l'enseignant, de l'école et de la commune sont remplacés automatiquement par des marqueurs.</p>
+          <div class="output prompt-preview" id="pv"></div>
+          ${champMasques}
+        </li>
+        <li><h3>Copiez, puis collez dans ChatGPT</h3>
+          <div class="row"><button class="btn primary" id="go">${icon("copy")}Copier et ouvrir ChatGPT</button>
+          <span class="small muted">Dans ChatGPT : Ctrl+V, puis Entrée.</span></div>
+        </li>
+        <li><h3>Collez ici la réponse de ChatGPT</h3>
+          <textarea id="rep" rows="8" placeholder="Copiez la réponse de ChatGPT (bouton « Copier » sous sa réponse), puis collez-la ici."></textarea>
+          <div class="row" style="margin-top:8px"><span class="small muted">Les vrais noms seront rétablis automatiquement.</span><span class="spacer"></span><button class="btn primary" id="use">Utiliser ce texte</button></div>
+        </li>
+      </ol>
+      <div class="notice small">Conseil : dans ChatGPT, ouvrez Paramètres → Gestion des données, et désactivez « Améliorer le modèle pour tous » pour que vos textes ne servent pas à l'entraînement.</div>`;
+      const draw = () => ($("#pv").textContent = crPrompt(r));
+      draw(); bindMasques(draw);
+      $("#go").onclick = () => {
+        navigator.clipboard.writeText(crPrompt(r)).then(() => {
+          toast("Copié : collez-le dans ChatGPT");
+          window.open("https://chatgpt.com/", "_blank", "noopener");
+        }, () => toast("Copie impossible : sélectionnez le texte à la main"));
+      };
+      $("#use").onclick = () => { const t = $("#rep").value.trim(); if (!t) return toast("Collez d'abord la réponse"); useText(t); };
+    } else if (methode === "claude") {
+      mBox.innerHTML = hasKey ? `
+        <p class="small muted" style="margin-top:0">Le texte anonymisé ci-dessous est envoyé à Claude, puis le compte rendu revient directement ici, avec les vrais noms rétablis.</p>
+        <div class="output prompt-preview" id="pv"></div>
+        ${champMasques}
+        <div class="row" style="margin-top:12px"><span class="spacer"></span><button class="btn primary" id="gen">${icon("sparkle")}Rédiger avec Claude</button></div>`
+        : `<div class="notice">Cette option nécessite une clé d'API Claude, payante à l'usage (quelques centimes par compte rendu). Vous pouvez la renseigner dans <a href="#parametres">Réglages</a>. Sinon, l'option ChatGPT est gratuite.</div>`;
+      if (hasKey) {
+        const draw = () => ($("#pv").textContent = crPrompt(r));
+        draw(); bindMasques(draw);
+        $("#gen").onclick = async () => {
+          const b = $("#gen"); b.disabled = true; b.textContent = "Rédaction en cours…";
+          try { useText(await askClaude(getApiKey(), "Exécute la demande suivante.", crPrompt(r))); }
+          catch (err) { toast("Erreur : " + err.message); b.disabled = false; b.innerHTML = icon("sparkle") + "Rédiger avec Claude"; }
+        };
+      }
+    } else {
+      mBox.innerHTML = `
+        <p class="small muted" style="margin-top:0">Génère un compte rendu structuré à partir de la grille et de vos notes, sans rien envoyer à l'extérieur. Vous le reformulez ensuite à votre guise.</p>
+        <div class="row"><span class="spacer"></span><button class="btn primary" id="gen">Générer depuis la grille</button></div>`;
+      $("#gen").onclick = () => useText(compteRendu(r));
+    }
+    if (r.crFinal) mBox.insertAdjacentHTML("beforeend", `<div class="notice warn small" style="margin-top:12px">Un compte rendu existe déjà : générer un nouveau texte le remplacera. <a href="#" id="toFinal">Voir le texte actuel</a></div>`);
+    const tf = $("#toFinal"); if (tf) tf.onclick = (e) => { e.preventDefault(); setStep(3); };
+    return;
+  }
+
+  // Étape 3 : relecture et export
+  box.innerHTML = r.crFinal ? `
+    <div class="card">
+      <div class="card-head">
+        <h2>Relecture</h2>
+        <div class="row">
+          <span class="small muted" id="saved"></span>
+          <button class="btn sm" id="cp">${icon("copy")}Copier</button>
+          <button class="btn sm" id="wd">${icon("down")}Word</button>
+          <button class="btn sm" id="pr">Imprimer</button>
+          ${etat !== "envoye" ? `<button class="btn sm primary" id="sent">Marquer comme envoyé</button>` : `<button class="btn sm" id="unsent">Rouvrir</button>`}
+        </div>
+      </div>
+      <textarea class="editor" id="final">${esc(r.crFinal)}</textarea>
+    </div>` : `
+    <div class="card"><p class="empty">Aucun texte pour l'instant.</p><button class="btn primary" id="toRed">Aller à la rédaction</button></div>`;
+  if (!r.crFinal) { $("#toRed").onclick = () => setStep(2); return; }
+  const entete = () => `${r.type}\n${r.civilite ? r.civilite + " " : ""}${r.enseignant} — ${ecoleLabel(r.uai)}\nVisite du ${fmtDate(r.date, { day: "numeric", month: "long", year: "numeric" })}\n\n`;
+  $("#final").oninput = (e) => {
+    r.crFinal = e.target.value; clearTimeout(renderCREditeur._t);
+    renderCREditeur._t = setTimeout(() => { save(); $("#saved").textContent = "Enregistré"; }, 600);
+  };
+  const fichier = `compte-rendu-${(r.enseignant || "").replace(/\W+/g, "-")}`;
+  $("#cp").onclick = () => copy(r.crFinal);
+  $("#wd").onclick = () => downloadWord(fichier + ".doc", "Compte rendu", entete() + r.crFinal);
+  $("#pr").onclick = () => printText("Compte rendu", entete() + r.crFinal);
+  const s = $("#sent"); if (s) s.onclick = () => { save(); r.statut = "Compte rendu envoyé"; save(); updateCounts(); route(); toast("Marqué comme envoyé"); };
+  const u = $("#unsent"); if (u) u.onclick = () => { r.statut = "Réalisé"; save(); updateCounts(); route(); };
+}
+
+function updateCounts() {
+  const today = todayISO();
+  const set = (k, n) => { const e = $(`[data-count="${k}"]`); if (e) e.textContent = n || ""; };
+  set("courrier", state.courrier.filter((c) => c.statut !== "Traité").length);
+  set("rdv", state.rdv.filter((r) => r.date >= today && (r.statut === "Planifié" || r.statut === "À planifier")).length);
+  set("cr", crListe().filter((r) => crEtat(r) === "arediger").length);
 }
 
 /* ---------- Démarrage ---------- */
