@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Circonscription de Grasse</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏫</text></svg>">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">G</div>
+      <div>
+        <div class="brand-title">Circonscription</div>
+        <div class="brand-sub">de Grasse · 1er degré</div>
+      </div>
+    </div>
+    <nav id="nav">
+      <a href="#accueil" data-view="accueil"><span>🏠</span>Accueil</a>
+      <a href="#courrier" data-view="courrier"><span>✉️</span>Messagerie &amp; courrier</a>
+      <a href="#rdv" data-view="rdv"><span>📋</span>Rendez-vous de carrière</a>
+      <a href="#ecoles" data-view="ecoles"><span>🏫</span>Écoles</a>
+      <a href="#trajets" data-view="trajets"><span>🚗</span>Trajets</a>
+      <a href="#animations" data-view="animations"><span>🎓</span>Animations pédagogiques</a>
+      <a href="#redaction" data-view="redaction"><span>✍️</span>Aide à la rédaction</a>
+      <a href="#parametres" data-view="parametres"><span>⚙️</span>Paramètres</a>
+    </nav>
+    <div class="sidebar-foot">Données enregistrées uniquement sur cet ordinateur.</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-btn" id="menuBtn" aria-label="Menu">☰</button>
+      <h1 id="viewTitle">Accueil</h1>
+      <div class="topbar-date" id="todayLabel"></div>
+    </header>
+    <main id="view"></main>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head"><h2 id="modalTitle"></h2><button class="icon-btn" id="modalClose" aria-label="Fermer">✕</button></div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
