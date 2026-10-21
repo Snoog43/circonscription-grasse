@@ -898,6 +898,7 @@ function renderParametres(el) {
       <form id="pForm" class="form-grid">
         <div><label>Votre nom (pour la signature et l'accueil)</label><input name="nom" value="${esc(s.nom)}"></div>
         <div><label>Barème kilométrique (€/km)</label><input type="number" step="0.01" name="bareme" value="${esc(s.bareme)}"></div>
+        <div><label>Apparence</label><select name="theme">${[["light", "Claire"], ["dark", "Sombre"], ["auto", "Automatique (selon l'appareil)"]].map(([v, l]) => `<option value="${v}" ${(s.theme || "light") === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
       </form>
     </div>
     <div class="card">
@@ -923,7 +924,7 @@ function renderParametres(el) {
     </div>
   </div>`;
 
-  $("#pForm").oninput = () => { const d = formData($("#pForm")); s.nom = d.nom; s.bareme = parseFloat(d.bareme) || 0; save(); };
+  $("#pForm").oninput = $("#pForm").onchange = () => { const d = formData($("#pForm")); s.nom = d.nom; s.bareme = parseFloat(d.bareme) || 0; s.theme = d.theme; appliquerTheme(); save(); };
   const drawLiens = () => {
     $("#liens").innerHTML = s.liens.map((l, i) => `
       <div class="row"><input data-i="${i}" data-k="icon" value="${esc(l.icon)}" style="width:56px"><input data-i="${i}" data-k="label" value="${esc(l.label)}" style="flex:1;min-width:140px">
@@ -1263,6 +1264,8 @@ function updateCounts() {
 }
 
 /* ---------- Démarrage ---------- */
+function appliquerTheme() { document.documentElement.dataset.theme = state.settings.theme || "light"; }
+appliquerTheme();
 window.closeModal = closeModal;
 loadEcoles().then(() => { if (["accueil", "", "rdv"].includes(location.hash.slice(1))) route(); });
 route();

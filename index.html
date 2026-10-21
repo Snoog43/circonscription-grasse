@@ -1,16 +1,15 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#eef3fb">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Circonscription de Grasse</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%230a84ff'/><stop offset='1' stop-color='%235e5ce6'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23g)'/><text x='16' y='22' font-family='Arial' font-weight='700' font-size='17' fill='white' text-anchor='middle'>G</text></svg>">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -42,18 +41,18 @@
       </div>
     </div>
     <nav id="nav">
-      <a href="#accueil" data-view="accueil"><svg class="i"><use href="#i-home"/></svg>Accueil</a>
-      <a href="#courrier" data-view="courrier"><svg class="i"><use href="#i-mail"/></svg>Courrier<span class="count" data-count="courrier"></span></a>
+      <a href="#accueil" data-view="accueil"><span class="nic" style="--c1:#5ac8fa;--c2:#007aff"><svg class="i"><use href="#i-home"/></svg></span>Accueil</a>
+      <a href="#courrier" data-view="courrier"><span class="nic" style="--c1:#4fd8f0;--c2:#0096c7"><svg class="i"><use href="#i-mail"/></svg></span>Courrier<span class="count" data-count="courrier"></span></a>
       <div class="nav-label">Inspection</div>
-      <a href="#rdv" data-view="rdv"><svg class="i"><use href="#i-cal"/></svg>Rendez-vous<span class="count" data-count="rdv"></span></a>
-      <a href="#cr" data-view="cr"><svg class="i"><use href="#i-doc"/></svg>Comptes rendus<span class="count" data-count="cr"></span></a>
+      <a href="#rdv" data-view="rdv"><span class="nic" style="--c1:#ff8a80;--c2:#ff3b30"><svg class="i"><use href="#i-cal"/></svg></span>Rendez-vous<span class="count" data-count="rdv"></span></a>
+      <a href="#cr" data-view="cr"><span class="nic" style="--c1:#ffc94d;--c2:#ff9500"><svg class="i"><use href="#i-doc"/></svg></span>Comptes rendus<span class="count" data-count="cr"></span></a>
       <div class="nav-label">Circonscription</div>
-      <a href="#ecoles" data-view="ecoles"><svg class="i"><use href="#i-school"/></svg>Écoles</a>
-      <a href="#trajets" data-view="trajets"><svg class="i"><use href="#i-route"/></svg>Trajets</a>
-      <a href="#animations" data-view="animations"><svg class="i"><use href="#i-people"/></svg>Animations</a>
+      <a href="#ecoles" data-view="ecoles"><span class="nic" style="--c1:#6be38a;--c2:#28b64f"><svg class="i"><use href="#i-school"/></svg></span>Écoles</a>
+      <a href="#trajets" data-view="trajets"><span class="nic" style="--c1:#9b99ff;--c2:#5856d6"><svg class="i"><use href="#i-route"/></svg></span>Trajets</a>
+      <a href="#animations" data-view="animations"><span class="nic" style="--c1:#ff8ab8;--c2:#ff2d55"><svg class="i"><use href="#i-people"/></svg></span>Animations</a>
       <div class="nav-label">Outils</div>
-      <a href="#redaction" data-view="redaction"><svg class="i"><use href="#i-pen"/></svg>Courriers types</a>
-      <a href="#parametres" data-view="parametres"><svg class="i"><use href="#i-gear"/></svg>Réglages</a>
+      <a href="#redaction" data-view="redaction"><span class="nic" style="--c1:#d99bff;--c2:#af52de"><svg class="i"><use href="#i-pen"/></svg></span>Courriers types</a>
+      <a href="#parametres" data-view="parametres"><span class="nic" style="--c1:#b8bcc8;--c2:#7c8190"><svg class="i"><use href="#i-gear"/></svg></span>Réglages</a>
     </nav>
     <div class="sidebar-foot"><svg class="i"><use href="#i-lock"/></svg>Données stockées sur cet appareil</div>
   </aside>
@@ -77,6 +76,6 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>
